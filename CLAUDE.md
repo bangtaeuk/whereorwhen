@@ -8,16 +8,12 @@
 
 - **GitHub**: https://github.com/bangtaeuk/whereorwhen
 - **브랜치 전략**: `main` (기본 브랜치)
-- **로컬 경로**: `c:\Users\MRT-USER\whereorwhen`
 
 ---
 
 ## PRD
 
-이 프로젝트의 제품 요구사항 문서:
-
-- `c:\Users\MRT-USER\MRT-Growth\docs\whereorwhen\PRD.md`
-- 로컬 사본: `c:\Users\MRT-USER\whereorwhen\PRD.md`
+이 프로젝트의 제품 요구사항 문서: `PRD.md` (루트 디렉토리)
 
 ---
 
@@ -82,77 +78,8 @@ npm run lint   # ESLint 실행
 
 ---
 
-## MRT Growth 팀 페르소나 참조
+## 로컬 설정
 
-이 프로젝트는 마이리얼트립 Growth 실에서 기획되었습니다. 제품/마케팅 방향 논의가 필요할 때 아래 페르소나 파일을 `@` 경로로 로드하세요.
+팀 페르소나, 세션 기록 등 개인 환경 설정은 `LOCAL.md`에 분리되어 있습니다 (git에 포함되지 않음).
 
-### 핵심 참조 파일
-
-| 파일 | 용도 | 경로 |
-|------|------|------|
-| 컨텍스트 동기화 | 핵심가치, 메타규칙, 판단기준 | `c:\Users\MRT-USER\MRT-Growth\init.md` |
-| 브랜드 가이드라인 | 포지셔닝, 메시지 원칙 | `c:\Users\MRT-USER\MRT-Growth\growth-department\BRAND-GUIDELINES.md` |
-| OKR | Growth Loop, 팀별 KR | `c:\Users\MRT-USER\MRT-Growth\growth-department\2026-OKR.md` |
-
-### 리더십
-
-| 역할 | 용도 | 경로 |
-|------|------|------|
-| Growth Director | 최고 의사결정자, Debating Partner | `c:\Users\MRT-USER\MRT-Growth\growth-department\growth-director.md` |
-| Marketing Lead | 마케팅팀 리더 | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-lead.md` |
-| Product Lead | 제품팀 리더 | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-lead.md` |
-
-### 마케팅팀
-
-| 역할 | 경로 |
-|------|------|
-| Branding Specialist | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\branding-specialist.md` |
-| Performance Marketer | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\performance-marketer.md` |
-| Content Strategist | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\content-strategist.md` |
-| CRM Specialist | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\crm-specialist.md` |
-| Partnership Manager | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\partnership-manager.md` |
-| Devil's Advocate (마케팅) | `c:\Users\MRT-USER\MRT-Growth\growth-department\marketing-team\devils-advocate-marketing.md` |
-
-### 제품팀
-
-| 역할 | 경로 |
-|------|------|
-| Product Manager | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\product-manager.md` |
-| Growth PM | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\growth-pm.md` |
-| Product Designer | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\product-designer.md` |
-| Data Analyst | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\data-analyst.md` |
-| Frontend Developer | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\frontend-developer.md` |
-| Backend Developer | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\backend-developer.md` |
-| Devil's Advocate (제품) | `c:\Users\MRT-USER\MRT-Growth\growth-department\product-team\devils-advocate-product.md` |
-
----
-
-## 페르소나 로드 가이드
-
-### 기본 세션 시작
-
-대화 시작 시:
-
-```
-@c:\Users\MRT-USER\MRT-Growth\init.md 와 @c:\Users\MRT-USER\MRT-Growth\growth-department\growth-director.md 를 로드해줘
-```
-
-### 상황별 로드 조합
-
-| 상황 | 로드할 페르소나 |
-|------|---------------|
-| 제품 방향 논의 | init.md + growth-director.md + product-lead.md |
-| 마케팅/바이럴 전략 | init.md + growth-director.md + marketing-lead.md |
-| UI/UX 리뷰 | product-lead.md + product-designer.md |
-| 데이터 모델/점수 알고리즘 | product-lead.md + data-analyst.md |
-| 프론트엔드 구현 리뷰 | product-lead.md + frontend-developer.md |
-| 백엔드/API 구현 리뷰 | product-lead.md + backend-developer.md |
-| 런칭 전 리스크 체크 | devils-advocate-marketing.md + devils-advocate-product.md |
-
----
-
-## 세션 기록
-
-이 프로젝트 관련 세션 기록은 MRT-Growth에 저장됨:
-
-- `c:\Users\MRT-USER\MRT-Growth\growth-department\sessions\2026-02-12_whereorwhen-service-ideation\`
+페르소나를 사용하려면: `@LOCAL.md` 를 로드하세요.

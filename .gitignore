@@ -41,3 +41,6 @@ next-env.d.ts
 
 # omc state
 .omc/
+
+# local-only config (personas, session paths)
+LOCAL.md
