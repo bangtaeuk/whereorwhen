@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 /**
  * 점수 계산 스크립트
  * Run: npx tsx src/scripts/calculate-scores.ts

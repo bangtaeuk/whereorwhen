@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 /**
  * ExchangeRate API 환율 데이터 수집 스크립트
  * Run: npx tsx src/scripts/collect-exchange.ts
@@ -83,7 +85,7 @@ async function alreadyCollectedToday(date: string): Promise<boolean> {
 // Fetch exchange rates
 // ---------------------------------------------------------------------------
 async function fetchRates(): Promise<ExchangeRateResponse> {
-  const apiKey = requireEnv("EXCHANGERATE_API_KEY");
+  const apiKey = requireEnv("EXCHANGE_RATE_API_KEY");
   const url = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/KRW`;
 
   const res = await fetch(url);

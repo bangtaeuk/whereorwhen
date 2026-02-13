@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 /**
  * Open-Meteo Historical Weather API 데이터 수집 스크립트
  * Run: npx tsx src/scripts/collect-weather.ts
@@ -197,8 +199,8 @@ async function main() {
       );
     }
 
-    // 1-second delay between cities
-    await sleep(1000);
+    // 5-second delay between cities (Open-Meteo rate limit: ~10 req/min)
+    await sleep(5000);
   }
 
   console.log(`\nComplete! Upserted ${totalRows} rows total.`);

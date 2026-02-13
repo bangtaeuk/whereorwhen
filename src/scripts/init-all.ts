@@ -10,6 +10,7 @@
  *  5. calculate-scores  (점수 계산)
  */
 
+import "dotenv/config";
 import { execSync } from "child_process";
 import path from "path";
 

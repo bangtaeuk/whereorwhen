@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 // Run: npx tsx src/scripts/collect-buzz.ts
 
 import { createClient } from "@supabase/supabase-js";

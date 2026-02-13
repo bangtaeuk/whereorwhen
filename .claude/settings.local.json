@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "gemini"
+  ],
+  "enableAllProjectMcpServers": true
+}
