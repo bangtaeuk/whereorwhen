@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       full_refresh:
-        description: "Run all collectors (weather, holidays, buzz) in addition to daily tasks"
+        description: "Run all collectors (weather, holidays, trend) in addition to daily tasks"
         required: false
         default: "false"
         type: boolean
@@ -37,17 +37,17 @@ jobs:
         env:
           EXCHANGERATE_API_KEY: ${{ secrets.EXCHANGERATE_API_KEY }}
 
-      # ── Monthly (1st): buzz collection ─────────────────────
-      - name: Collect buzz data (monthly)
+      # ── Monthly (1st): trend collection ─────────────────────
+      - name: Collect trend data (monthly)
         if: >-
           github.event_name == 'workflow_dispatch' && inputs.full_refresh == 'true' ||
           (github.event_name == 'schedule' && github.run_number != '' && startsWith(github.event.schedule, '0 3'))
         run: |
           DAY=$(date -u +%d)
           if [ "$DAY" = "01" ] || [ "${{ inputs.full_refresh }}" = "true" ]; then
-            npx tsx src/scripts/collect-buzz.ts
+            npx tsx src/scripts/collect-trend.ts
           else
-            echo "Skipping buzz — not 1st of month"
+            echo "Skipping trend — not 1st of month"
           fi
         env:
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
@@ -67,3 +67,26 @@ jobs:
       # ── Always: recalculate scores ─────────────────────────
       - name: Calculate scores
         run: npx tsx src/scripts/calculate-scores.ts
+
+  # ── Manual-only: backfill historical exchange rates ────────
+  backfill-exchange:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Backfill exchange rates
+        run: npx tsx src/scripts/backfill-exchange.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXCHANGERATE_API_KEY: ${{ secrets.EXCHANGERATE_API_KEY }}

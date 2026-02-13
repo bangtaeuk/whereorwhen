@@ -6,7 +6,7 @@
  *  1. collect-weather  (10년치 날씨 — 가장 오래 걸림)
  *  2. collect-holidays (공휴일)
  *  3. collect-exchange  (환율)
- *  4. collect-buzz      (블로그 버즈 — NAVER API 키 필요, 없으면 스킵)
+ *  4. collect-trend     (검색 트렌드 — NAVER API 키 필요, 없으면 스킵)
  *  5. calculate-scores  (점수 계산)
  */
 
@@ -61,13 +61,13 @@ function main(): void {
   // 3. Exchange Rates
   run("Collect Exchange Rates", "collect-exchange.ts");
 
-  // 4. Buzz (optional — requires NAVER_CLIENT_ID / NAVER_CLIENT_SECRET)
-  const hasBuzzKeys =
+  // 4. Trend (optional — requires NAVER_CLIENT_ID / NAVER_CLIENT_SECRET)
+  const hasTrendKeys =
     process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET;
-  if (hasBuzzKeys) {
-    run("Collect Buzz", "collect-buzz.ts");
+  if (hasTrendKeys) {
+    run("Collect Trend", "collect-trend.ts");
   } else {
-    console.log("\n⚠ Collect Buzz — skipped (NAVER_CLIENT_ID not set)");
+    console.log("\n⚠ Collect Trend — skipped (NAVER_CLIENT_ID not set)");
   }
 
   // 5. Calculate Scores

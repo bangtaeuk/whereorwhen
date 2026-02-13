@@ -26,6 +26,13 @@ const SUB_LABELS: Record<string, string> = {
   buzz: "버즈",
 };
 
+const SUB_DESCRIPTIONS: Record<string, string> = {
+  weather: "10년 평균 기상 데이터 기반 · 맑은 날 비율 + 쾌적 기온",
+  cost: "365일 평균 환율 대비 현재 환율 · 저렴할수록 높은 점수",
+  crowd: "한국·현지 공휴일 + 성수기 종합 · 한산할수록 높은 점수",
+  buzz: "네이버 검색 트렌드 기반 · 인기 시즌일수록 높은 점수",
+};
+
 const NOW_MONTH = new Date().getMonth() + 1;
 
 /* ── Score Utilities ──────────────────────────────────────── */
@@ -58,38 +65,47 @@ function ScoreBar({
   label,
   value,
   animate,
+  description,
 }: {
   label: string;
   value: number;
   animate: boolean;
+  description?: string;
 }) {
   const color = scoreColor(value);
   return (
-    <div className="flex items-center gap-3 py-1">
-      <span
-        className="text-xs w-12 shrink-0"
-        style={{ color: "#6B7684" }}
-      >
-        {label}
-      </span>
-      <div
-        className="flex-1 h-[2px] rounded-full overflow-hidden"
-        style={{ backgroundColor: "#F2F3F5" }}
-      >
+    <div>
+      <div className="flex items-center gap-3 py-1">
+        <span
+          className="text-xs w-12 shrink-0"
+          style={{ color: "#6B7684" }}
+        >
+          {label}
+        </span>
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{
-            width: animate ? `${(value / 10) * 100}%` : "0%",
-            backgroundColor: color,
-          }}
-        />
+          className="flex-1 h-[2px] rounded-full overflow-hidden"
+          style={{ backgroundColor: "#F2F3F5" }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: animate ? `${(value / 10) * 100}%` : "0%",
+              backgroundColor: color,
+            }}
+          />
+        </div>
+        <span
+          className="text-xs tabular-nums w-7 text-right shrink-0 font-medium"
+          style={{ color }}
+        >
+          {value.toFixed(1)}
+        </span>
       </div>
-      <span
-        className="text-xs tabular-nums w-7 text-right shrink-0 font-medium"
-        style={{ color }}
-      >
-        {value.toFixed(1)}
-      </span>
+      {description && (
+        <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "#ADB5BD" }}>
+          {description}
+        </p>
+      )}
     </div>
   );
 }
@@ -729,6 +745,7 @@ function CalendarDetailPanel({
             label={SUB_LABELS[key]}
             value={scores[key]}
             animate={animate}
+            description={SUB_DESCRIPTIONS[key]}
           />
         ))}
       </div>
@@ -1062,6 +1079,7 @@ function TopCardScoreBars({ scores }: { scores: ScoreBreakdown }) {
           label={SUB_LABELS[key]}
           value={scores[key]}
           animate={animate}
+          description={SUB_DESCRIPTIONS[key]}
         />
       ))}
     </div>
@@ -1102,6 +1120,7 @@ function MidRankExpandedDetail({
             label={SUB_LABELS[key]}
             value={item.scores[key]}
             animate={animate}
+            description={SUB_DESCRIPTIONS[key]}
           />
         ))}
       </div>
