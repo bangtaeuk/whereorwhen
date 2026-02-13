@@ -20,7 +20,7 @@ export async function GET(
     );
   }
 
-  const scores = getScoresForCity(cityId);
+  const scores = await getScoresForCity(cityId);
 
   // 최고 점수 월
   const bestMonth = scores.reduce(

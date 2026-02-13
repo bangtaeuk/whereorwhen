@@ -1,40 +1,23 @@
-import type { City, MonthlyScore, ScoreBreakdown } from "@/types";
+import { createClient } from "@supabase/supabase-js";
+import type { City, MonthlyScore } from "@/types";
 import { cities } from "@/data/cities";
-import { calculateTotalScore } from "@/lib/score";
+import {
+  getScoresForCity as getMockScoresForCity,
+  getScoresForMonth as getMockScoresForMonth,
+} from "@/data/mock-scores";
 
-/**
- * 임시 Mock 점수 생성기
- * 실제 DB/API 연동 전까지 사용하는 결정론적 시뮬레이션 데이터
- * cityId + month 조합으로 항상 동일한 점수를 반환
- */
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-function generateMockScores(cityId: string, month: number): ScoreBreakdown {
-  const cityHash = Array.from(cityId).reduce(
-    (acc, c) => acc + c.charCodeAt(0),
-    0
-  );
-  const base = cityHash * 13 + month * 7;
-
-  const weather =
-    Math.round((3 + seededRandom(base + 1) * 7) * 10) / 10;
-  const cost =
-    Math.round((3 + seededRandom(base + 2) * 7) * 10) / 10;
-  const crowd =
-    Math.round((3 + seededRandom(base + 3) * 7) * 10) / 10;
-  const buzz =
-    Math.round((3 + seededRandom(base + 4) * 7) * 10) / 10;
-
-  const total = calculateTotalScore({ weather, cost, crowd, buzz });
-
-  return { weather, cost, crowd, buzz, total };
+// ---------------------------------------------------------------------------
+// Supabase client (anon key for reads)
+// ---------------------------------------------------------------------------
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Static data (no DB needed)
 // ---------------------------------------------------------------------------
 
 /** 도시 목록 조회 (검색어 필터 지원) */
@@ -56,25 +39,77 @@ export function getCityById(id: string): City | undefined {
   return cities.find((c) => c.id === id);
 }
 
+// ---------------------------------------------------------------------------
+// Score queries (Supabase with mock fallback)
+// ---------------------------------------------------------------------------
+
+/** scores_cache row → MonthlyScore 변환 */
+interface ScoresCacheRow {
+  city_id: string;
+  month: number;
+  weather: number;
+  cost: number;
+  crowd: number;
+  buzz: number;
+  total: number;
+}
+
+function toMonthlyScore(row: ScoresCacheRow): MonthlyScore {
+  return {
+    cityId: row.city_id,
+    month: row.month,
+    scores: {
+      weather: row.weather,
+      cost: row.cost,
+      crowd: row.crowd,
+      buzz: row.buzz,
+      total: row.total,
+    },
+  };
+}
+
 /** Mode A: 특정 도시의 12개월 점수 */
-export function getScoresForCity(cityId: string): MonthlyScore[] {
-  return Array.from({ length: 12 }, (_, i) => {
-    const month = i + 1;
-    return {
-      cityId,
-      month,
-      scores: generateMockScores(cityId, month),
-    };
-  });
+export async function getScoresForCity(
+  cityId: string
+): Promise<MonthlyScore[]> {
+  const supabase = getSupabase();
+  if (!supabase) return getMockScoresForCity(cityId);
+
+  const { data, error } = await supabase
+    .from("scores_cache")
+    .select("city_id, month, weather, cost, crowd, buzz, total")
+    .eq("city_id", cityId)
+    .order("month", { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return getMockScoresForCity(cityId);
+  }
+
+  return (data as ScoresCacheRow[]).map(toMonthlyScore);
 }
 
 /** Mode B: 특정 월의 전체 도시 점수 (total 내림차순) */
-export function getRankingForMonth(month: number): MonthlyScore[] {
-  return cities
-    .map((city) => ({
-      cityId: city.id,
-      month,
-      scores: generateMockScores(city.id, month),
-    }))
-    .sort((a, b) => b.scores.total - a.scores.total);
+export async function getRankingForMonth(
+  month: number
+): Promise<MonthlyScore[]> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return getMockScoresForMonth(month).sort(
+      (a, b) => b.scores.total - a.scores.total
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("scores_cache")
+    .select("city_id, month, weather, cost, crowd, buzz, total")
+    .eq("month", month)
+    .order("total", { ascending: false });
+
+  if (error || !data || data.length === 0) {
+    return getMockScoresForMonth(month).sort(
+      (a, b) => b.scores.total - a.scores.total
+    );
+  }
+
+  return (data as ScoresCacheRow[]).map(toMonthlyScore);
 }

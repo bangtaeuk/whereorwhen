@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const monthlyScores = getRankingForMonth(month);
+  const monthlyScores = await getRankingForMonth(month);
 
   const rankings = monthlyScores.map((ms, index) => {
     const city = getCityById(ms.cityId);
