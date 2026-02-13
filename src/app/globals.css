@@ -10,12 +10,7 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* dark mode disabled — light-only for MRT brand consistency */
 
 body {
   color: var(--foreground);
