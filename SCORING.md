@@ -49,13 +49,16 @@
 ### 3.2 비용 점수 (Cost)
 
 - **사용자 설명**: "최근 365일 평균 환율 대비 현재 환율 비교 — 저렴할수록 높은 점수"
-- **데이터 소스**: Frankfurter API + ExchangeRate API (365일 평균 vs 현재)
-- **공식**:
-  - 365일 평균 환율과 현재 환율의 차이를 계산
-  - **시그모이드 매핑**: 평균 대비 현재 환율이 유리할수록(저렴할수록) 높은 점수
-  - 통화별 기본 물가 수준(base cost) 반영
-  - `점수 = baseCost + 환율변동률 * 10`
-  - 결과를 1.0~10.0으로 클램핑
+- **데이터 소스**: ExchangeRate API (일일 수집) + Frankfurter API (365일 백필)
+- **배치 계산** (`calculate-scores.ts`):
+  - 365일 평균 환율과 최신 환율의 차이(pctDiff) 계산
+  - **시그모이드 매핑**: `5.5 + 4.5 * tanh(pctDiff / 10)`
+  - 양수 pctDiff = KRW이 강해짐 = 여행 저렴 = 높은 점수
+  - 최소 30일 이상의 데이터가 있어야 평균 계산 (부족 시 기본 5.0)
+- **정적 계산** (`scoring/cost.ts`, fallback용):
+  - 통화별 기본 물가 수준(base cost) + 월별 환율 변동 패턴
+  - `점수 = baseCost + 월별변동률 * 10`
+- 결과를 1.0~10.0으로 클램핑
 
 ### 3.3 혼잡도 점수 (Crowd)
 
@@ -102,9 +105,10 @@
 | 스크립트 | 설명 | 필수 환경변수 |
 |----------|------|---------------|
 | `src/scripts/collect-weather.ts` | Open-Meteo에서 10년치 날씨 데이터 수집 | 없음 |
-| `src/scripts/collect-exchange.ts` | Frankfurter/ExchangeRate에서 환율 수집 | `EXCHANGERATE_API_KEY` |
-| `src/scripts/backfill-exchange.ts` | 과거 환율 데이터 백필 | `EXCHANGERATE_API_KEY` |
+| `src/scripts/collect-exchange.ts` | ExchangeRate API에서 일일 환율 수집 | `EXCHANGE_RATE_API_KEY` |
+| `src/scripts/backfill-exchange.ts` | Frankfurter API로 과거 365일 환율 백필 | 없음 (무료 API) |
 | `src/scripts/collect-holidays.ts` | Nager.Date에서 공휴일 수집 | 없음 |
+| `src/scripts/collect-buzz.ts` | 네이버 Blog Search에서 블로그 버즈 수집 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` |
 | `src/scripts/collect-trend.ts` | 네이버 DataLab에서 검색 트렌드 수집 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` |
 | `src/scripts/calculate-scores.ts` | 수집된 데이터 기반 점수 계산 | 없음 |
 | `src/scripts/init-all.ts` | 마스터 초기화 (전체 수집 + 점수 계산) | 전체 |

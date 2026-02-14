@@ -10,6 +10,8 @@
 - **지시를 받으면 적절한 페르소나(`LOCAL.md` 참조)를 로드**하여 해당 역할의 관점으로 작업한다.
 - **병렬 가능한 작업은 무조건 병렬로 실행**한다. 토큰 사용량은 고려하지 않는다.
 - 프론트엔드는 `src/app/page.tsx` **하나로만 관리**한다. `/v{N}` 시안 라우트를 만들지 않는다.
+- 데이터베이스는 **Supabase**를 사용한다. `src/lib/supabase.ts`의 클라이언트를 통해 접근한다.
+- Supabase 미연결 시 `src/data/mock-scores.ts`가 fallback으로 동작한다.
 
 ---
 
@@ -62,6 +64,12 @@
 - 단, 데스크톱에서 화면 27%만 쓰는 것도 안 됨
 - `max-w-4xl` 이상 확보, `lg:grid-cols-4` 등 데스크톱 그리드 활용
 
+### 2.4 모드 전환
+
+- 상단 헤더에 Segmented Control (`도시 → 시기` / `시기 → 도시`)
+- 모드 A: 검색 → 도시 선택 → 12개월 캘린더 (1열 리스트)
+- 모드 B: 월 선택 (가로 스크롤 pill) → 3계층 랭킹 (Top3 히어로 + 4-10 컴팩트 + 11-20 미니멀)
+
 ---
 
 ## 3. 코드 원칙
@@ -74,16 +82,24 @@
 - `border` shorthand 사용 시 주의 — 개별 `borderTop/Left/Right/Bottom` 권장
 - `backdrop-blur`는 헤더에만. 카드에는 solid white + shadow 사용 (성능/호환성)
 
-### 3.2 빌드 & 검증
+### 3.2 데이터 레이어
+
+- Supabase 접근은 `src/lib/supabase.ts`의 `createServiceClient()` (쓰기) 또는 `createAnonClient()` (읽기) 사용
+- API Routes는 `src/lib/data-service.ts`를 통해 데이터 조회 (Supabase + mock fallback)
+- 수집 스크립트(`src/scripts/`)에서는 직접 Supabase service client 사용
+- 프론트 `page.tsx`에서는 현재 mock 데이터 직접 import (추후 API Route 전환 예정)
+
+### 3.3 빌드 & 검증
 
 - 코드 작성 후 반드시 `npx tsc --noEmit` 실행
 - 파일을 대량 추가/수정 후 `.next` 캐시 깨질 수 있음 → `Remove-Item -Recurse -Force .next` 후 재시작
 - PowerShell에서 커밋 메시지에 한글/특수문자 사용 시 파일 기반 커밋 (`git commit -F .git/COMMIT_MSG`)
 
-### 3.3 Git & 배포
+### 3.4 Git & 배포
 
 - 로컬 전용 파일(`LOCAL.md`, `.omc/`, `.claude/`)은 `.gitignore`에 포함
 - 페르소나/로컬 경로가 담긴 정보는 절대 public repo에 커밋하지 않음
+- `.env` 파일은 절대 커밋하지 않음 (Supabase 키, API 키 포함)
 - GitHub: `bangtaeuk@github.com/bangtaeuk/whereorwhen.git` (계정 주의)
 - Vercel 자동 배포 연결됨 — push하면 배포
 
@@ -91,13 +107,20 @@
 
 ## 4. 디자인 리뷰 프로세스
 
-### 4.1 디자인 시안 생성 시
+### 4.1 현재 디자인 (V15 확정)
 
-- 최소 3개 이상의 방향으로 병렬 생성하여 비교
-- 각 시안은 `/v{N}` 라우트에 독립 페이지로 생성
-- 기능은 모두 동일하게 구현 (모드 전환, 검색, 상세 등)
+디자인 탐색은 완료되었으며, V15가 최종 확정 버전이다.
+- V7 카드 UX + V11 랭킹 + V12 데스크톱 + V5 점수바의 조합
+- 모든 디자인은 `src/app/page.tsx` 하나에 통합되어 있음
+- 시안 라우트(`/v1`~`/v15`)는 더 이상 사용하지 않음
 
-### 4.2 평가 기준 (PRD 기반)
+### 4.2 향후 디자인 변경 시
+
+- 기존 `page.tsx`를 직접 수정한다 (별도 라우트 생성 금지)
+- 변경 전 Product Designer + Devil's Advocate 페르소나로 교차 검증
+- Playwright MCP 또는 직접 브라우저로 런타임 확인
+
+### 4.3 평가 기준 (PRD 기반)
 
 | 기준 | 설명 |
 |------|------|
@@ -109,8 +132,14 @@
 | 모바일 대응 | 375px 화면에서 정상 작동하는가 |
 | 공유 가능성 | 카카오톡/인스타에 공유할만한 화면인가 |
 
-### 4.3 검증 절차
+---
 
-- Product Designer + Devil's Advocate 페르소나로 교차 검증
-- Playwright MCP 또는 직접 브라우저로 런타임 확인
-- 최종 선택 후 메인 페이지에 반영
+## 5. 점수 알고리즘 원칙
+
+- 점수 산출 로직 상세는 `SCORING.md` 참조
+- 종합 점수 = W1(0.35)×날씨 + W2(0.25)×비용 + W3(0.15)×혼잡도 + W4(0.25)×버즈
+- 모든 개별 점수와 종합 점수는 **1.0 ~ 10.0** 범위
+- 점수 계산에 2가지 경로 존재:
+  - **실시간 계산**: `src/lib/scoring/` 모듈 (정적 데이터 기반, 위도/통화/국가코드)
+  - **배치 계산**: `src/scripts/calculate-scores.ts` (Supabase 원시 데이터 기반, 더 정확)
+- 프로덕션에서는 배치 계산 결과(`scores_cache`)를 사용하고, fallback으로 mock 데이터 사용
