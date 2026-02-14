@@ -591,8 +591,8 @@ function CalendarView({
         </button>
       </div>
 
-      {/* Calendar Grid (chronological 1-12) — grid is STABLE, never shifts */}
-      <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* Calendar List (1-column, 12 rows) — each row is one line */}
+      <div className="mt-5 flex flex-col gap-1.5">
         {cityScores.map((ms) => {
           const v = ms.scores.total;
           const color = scoreColor(v);
@@ -601,83 +601,97 @@ function CalendarView({
           const isSelected = expandedMonthKey === ms.month;
 
           return (
-            <button
-              key={ms.month}
-              onClick={() =>
-                setExpandedMonthKey(isSelected ? null : ms.month)
-              }
-              className={`relative rounded-2xl p-4 text-left transition-all duration-200 active:scale-95${isSelected ? " ring-2 ring-[#1B1D1F] z-10" : ""}`}
-              style={{
-                backgroundColor: "#FFFFFF",
-                borderTop: `3px solid ${color}`,
-                borderLeft: `1px ${isCurrent && !isSelected ? "dashed" : "solid"} ${isCurrent && !isSelected ? "#1B1D1F" : "transparent"}`,
-                borderRight: `1px ${isCurrent && !isSelected ? "dashed" : "solid"} ${isCurrent && !isSelected ? "#1B1D1F" : "transparent"}`,
-                borderBottom: `1px ${isCurrent && !isSelected ? "dashed" : "solid"} ${isCurrent && !isSelected ? "#1B1D1F" : "transparent"}`,
-                boxShadow: isSelected
-                  ? "0 4px 16px rgba(0,0,0,0.10)"
-                  : "0 1px 8px rgba(0,0,0,0.06)",
-                transform: isSelected ? "scale(1.02) translateY(-2px)" : "translateY(0)",
-              }}
-            >
-              {/* BEST badge */}
-              {isBest && (
-                <span
-                  className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: "#1B1D1F",
-                    color: "#FFFFFF",
-                  }}
-                >
-                  BEST
-                </span>
-              )}
-
-              {/* Month label */}
-              <p className="text-xs" style={{ color: "#6B7684" }}>
-                {MONTH_LABELS[ms.month - 1]}
-              </p>
-
-              {/* Score */}
-              <p
-                className="mt-1 text-2xl font-bold tabular-nums leading-none"
-                style={{ color }}
+            <div key={ms.month}>
+              {/* Month Row — single line */}
+              <button
+                onClick={() =>
+                  setExpandedMonthKey(isSelected ? null : ms.month)
+                }
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 active:scale-[0.99]${isSelected ? " ring-1 ring-[#1B1D1F]" : ""}`}
+                style={{
+                  backgroundColor: isSelected ? "#F7F8FA" : "#FFFFFF",
+                  borderLeft: `3px solid ${color}`,
+                  boxShadow: isSelected
+                    ? "0 2px 12px rgba(0,0,0,0.08)"
+                    : "0 1px 4px rgba(0,0,0,0.04)",
+                }}
               >
-                {v.toFixed(1)}
-              </p>
-
-              {/* Grade */}
-              <div className="mt-1.5 flex items-center gap-1">
+                {/* Month name */}
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                <span className="font-medium" style={{ fontSize: 10, color }}>
+                  className="text-xs font-medium w-8 shrink-0"
+                  style={{ color: isCurrent ? "#1B1D1F" : "#6B7684" }}
+                >
+                  {MONTH_LABELS[ms.month - 1]}
+                  {isCurrent && (
+                    <span
+                      className="inline-block w-1 h-1 rounded-full ml-0.5 align-super"
+                      style={{ backgroundColor: "#00C471" }}
+                    />
+                  )}
+                </span>
+
+                {/* Score bar — fills proportionally */}
+                <div
+                  className="flex-1 h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: "#F2F3F5" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${(v / 10) * 100}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+                </div>
+
+                {/* Score number */}
+                <span
+                  className="text-base font-bold tabular-nums w-9 text-right shrink-0"
+                  style={{ color }}
+                >
+                  {v.toFixed(1)}
+                </span>
+
+                {/* Grade label */}
+                <span
+                  className="text-[10px] font-bold w-8 shrink-0"
+                  style={{ color }}
+                >
                   {scoreGrade(v)}
                 </span>
-              </div>
-            </button>
+
+                {/* BEST badge */}
+                {isBest ? (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                    style={{ backgroundColor: "#1B1D1F", color: "#FFFFFF" }}
+                  >
+                    BEST
+                  </span>
+                ) : (
+                  <span className="w-8 shrink-0" />
+                )}
+              </button>
+
+              {/* Detail panel — RIGHT BELOW this row */}
+              {isSelected && (() => {
+                return (
+                  <div className="mt-1 mb-1">
+                    <CalendarDetailPanel
+                      city={selectedCity}
+                      month={ms.month}
+                      scores={ms.scores}
+                      highlights={generateHighlights(ms.cityId, ms.month, ms.scores)}
+                      color={color}
+                      onClose={() => setExpandedMonthKey(null)}
+                    />
+                  </div>
+                );
+              })()}
+            </div>
           );
         })}
       </div>
-
-      {/* Detail panel — BELOW grid, grid never shifts */}
-      {expandedMonthKey !== null && (() => {
-        const ms = cityScores.find((s) => s.month === expandedMonthKey);
-        if (!ms) return null;
-        const color = scoreColor(ms.scores.total);
-        return (
-          <div className="mt-3">
-            <CalendarDetailPanel
-              city={selectedCity}
-              month={ms.month}
-              scores={ms.scores}
-              highlights={generateHighlights(ms.cityId, ms.month, ms.scores)}
-              color={color}
-              onClose={() => setExpandedMonthKey(null)}
-            />
-          </div>
-        );
-      })()}
     </div>
   );
 }
