@@ -65,47 +65,38 @@ function ScoreBar({
   label,
   value,
   animate,
-  description,
 }: {
   label: string;
   value: number;
   animate: boolean;
-  description?: string;
 }) {
   const color = scoreColor(value);
   return (
-    <div>
-      <div className="flex items-center gap-3 py-1">
-        <span
-          className="text-xs w-12 shrink-0"
-          style={{ color: "#6B7684" }}
-        >
-          {label}
-        </span>
+    <div className="flex items-center gap-3 py-1.5">
+      <span
+        className="text-xs font-medium w-12 shrink-0"
+        style={{ color: "#6B7684" }}
+      >
+        {label}
+      </span>
+      <div
+        className="flex-1 h-1.5 rounded-full overflow-hidden"
+        style={{ backgroundColor: "#F2F3F5" }}
+      >
         <div
-          className="flex-1 h-[2px] rounded-full overflow-hidden"
-          style={{ backgroundColor: "#F2F3F5" }}
-        >
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-out"
-            style={{
-              width: animate ? `${(value / 10) * 100}%` : "0%",
-              backgroundColor: color,
-            }}
-          />
-        </div>
-        <span
-          className="text-xs tabular-nums w-7 text-right shrink-0 font-medium"
-          style={{ color }}
-        >
-          {value.toFixed(1)}
-        </span>
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{
+            width: animate ? `${(value / 10) * 100}%` : "0%",
+            backgroundColor: color,
+          }}
+        />
       </div>
-      {description && (
-        <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "#ADB5BD" }}>
-          {description}
-        </p>
-      )}
+      <span
+        className="text-xs tabular-nums w-7 text-right shrink-0 font-bold"
+        style={{ color }}
+      >
+        {value.toFixed(1)}
+      </span>
     </div>
   );
 }
@@ -332,9 +323,31 @@ export default function V15Page() {
         )}
       </main>
 
+      {/* ── Data Sources ──────────────────────────────────── */}
+      <section
+        className="max-w-4xl mx-auto px-4 py-6 mt-8 rounded-2xl"
+        style={{ backgroundColor: "#F7F8FA" }}
+      >
+        <p className="text-xs font-bold mb-3" style={{ color: "#6B7684" }}>
+          점수 산출 기준
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {SUB_KEYS.map((key) => (
+            <div key={key}>
+              <p className="text-xs font-bold" style={{ color: "#1B1D1F" }}>
+                {SUB_LABELS[key]}
+              </p>
+              <p className="text-[10px] mt-0.5 leading-relaxed" style={{ color: "#6B7684" }}>
+                {SUB_DESCRIPTIONS[key]}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── E. Footer ────────────────────────────────────── */}
       <footer
-        className="border-t py-8 text-center"
+        className="border-t py-6 text-center mt-4"
         style={{ borderColor: "#E8EBED" }}
       >
         <p className="text-xs" style={{ color: "#ADB5BD" }}>
@@ -702,17 +715,28 @@ function CalendarDetailPanel({
         borderLeftColor: color,
       }}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
+      {/* Header — city info + highlights inline + score + close */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-bold" style={{ color: "#1B1D1F" }}>
             {city.nameKo} · {MONTH_LABELS[month - 1]}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "#6B7684" }}>
-            {city.nameEn}, {city.country}
-          </p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="text-xs" style={{ color: "#6B7684" }}>
+              {city.nameEn}
+            </span>
+            {highlights.map((h, i) => (
+              <span
+                key={i}
+                className="text-[10px] px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: "#F7F8FA", color: "#6B7684" }}
+              >
+                {h}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="text-right">
             <span
               className="text-3xl font-bold tabular-nums"
@@ -735,35 +759,19 @@ function CalendarDetailPanel({
       </div>
 
       {/* Thin separator */}
-      <div className="my-4" style={{ height: 1, backgroundColor: "#E8EBED" }} />
+      <div className="my-3" style={{ height: 1, backgroundColor: "#E8EBED" }} />
 
       {/* Score bars */}
-      <div className="space-y-0.5">
+      <div>
         {SUB_KEYS.map((key) => (
           <ScoreBar
             key={key}
             label={SUB_LABELS[key]}
             value={scores[key]}
             animate={animate}
-            description={SUB_DESCRIPTIONS[key]}
           />
         ))}
       </div>
-
-      {/* Highlight tags */}
-      {highlights.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {highlights.map((h, i) => (
-            <span
-              key={i}
-              className="text-xs px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: "#F7F8FA", color: "#6B7684" }}
-            >
-              {h}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1079,7 +1087,6 @@ function TopCardScoreBars({ scores }: { scores: ScoreBreakdown }) {
           label={SUB_LABELS[key]}
           value={scores[key]}
           animate={animate}
-          description={SUB_DESCRIPTIONS[key]}
         />
       ))}
     </div>
@@ -1120,7 +1127,7 @@ function MidRankExpandedDetail({
             label={SUB_LABELS[key]}
             value={item.scores[key]}
             animate={animate}
-            description={SUB_DESCRIPTIONS[key]}
+          
           />
         ))}
       </div>
