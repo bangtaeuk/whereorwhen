@@ -199,8 +199,8 @@ async function main() {
       );
     }
 
-    // 5-second delay between cities (Open-Meteo rate limit: ~10 req/min)
-    await sleep(5000);
+    // 8-second delay between cities (Open-Meteo rate limit ~10 req/min, 86 cities)
+    await sleep(8000);
   }
 
   console.log(`\nComplete! Upserted ${totalRows} rows total.`);
