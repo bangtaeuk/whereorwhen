@@ -30,8 +30,9 @@ interface NagerHoliday {
   types: string[];
 }
 
-// ── Country codes to collect (15 total) ──────────────────
+// ── Country codes to collect (43 total) ──────────────────
 const COUNTRY_CODES = [
+  // 기존 (15)
   "KR", // 한국 (항상 포함)
   "JP",
   "VN",
@@ -47,6 +48,40 @@ const COUNTRY_CODES = [
   "GB",
   "ES",
   "AU",
+  // 동남아/마카오
+  "KH",
+  "LA",
+  "MM",
+  "MO",
+  // 중동/터키
+  "AE",
+  "TR",
+  // 유럽
+  "IT",
+  "DE",
+  "CZ",
+  "AT",
+  "CH",
+  "NL",
+  "HU",
+  "HR",
+  "GR",
+  "PT",
+  "FI",
+  "IS",
+  "NO",
+  "SE",
+  "DK",
+  "PL",
+  // 북미
+  "CA",
+  "MX",
+  // 오세아니아
+  "NZ",
+  // 리조트
+  "MV",
+  "FJ",
+  "PW",
 ] as const;
 
 // ── main ─────────────────────────────────────────────────

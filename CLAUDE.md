@@ -34,9 +34,10 @@
 | API | 용도 | 인증 | 스크립트 |
 |-----|------|------|----------|
 | Open-Meteo Historical Weather | 날씨 점수 (10년 평균) | 키 불필요 | `collect-weather.ts` |
-| ExchangeRate API | 비용 점수 (일일 환율) | 무료 API Key | `collect-exchange.ts` |
+| Open-Meteo Forecast | 14일 예보 (v2) | 키 불필요 | `collect-forecast.ts` |
+| ExchangeRate API | 비용 점수 (일일 환율, 35개 통화) | 무료 API Key | `collect-exchange.ts` |
 | Frankfurter API | 환율 백필 (365일) | 키 불필요 | `backfill-exchange.ts` |
-| Nager.Date | 혼잡도 점수 (공휴일) | 키 불필요 | `collect-holidays.ts` |
+| Nager.Date | 혼잡도 점수 (공휴일, 43개국) | 키 불필요 | `collect-holidays.ts` |
 | Naver Blog Search | 버즈 점수 (블로그 언급량) | Client ID/Secret | `collect-buzz.ts` |
 | Naver DataLab Search Trend | 버즈 점수 (검색 트렌드) | Client ID/Secret | `collect-trend.ts` |
 
@@ -113,7 +114,8 @@ whereorwhen/
     │       ├── buzz.ts        # 버즈 점수 (도시별 월간 패턴)
     │       └── forecast-adjustment.ts # 예보 기반 점수 보정 (v2)
     ├── data/                  # 정적 데이터
-    │   ├── cities.ts          # MVP 대상 20개 도시 정보
+    │   ├── cities.ts          # 전체 도시 목록 (86개, base 20 + new 63 병합)
+    │   ├── cities-new.ts      # 추가 63개 도시 데이터 (v2 확장)
     │   ├── seasons.ts         # 도시별 시즌 메타데이터 (v2)
     │   └── mock-scores.ts     # 20도시×12월 목업 점수 (Supabase 미연결 시 fallback)
     ├── scripts/               # 데이터 수집 & 점수 계산 스크립트
@@ -134,17 +136,26 @@ whereorwhen/
 ## 아키텍처 요약
 
 ```
-[클라이언트] page.tsx (CSR)
-     ↓ 직접 import (mock-scores.ts)  ← Supabase 미연결 시 fallback
-     ↓ fetch (API Routes)            ← Supabase 연결 시
-[API Routes] /api/scores/*, /api/cities
+[클라이언트] page.tsx (CSR) + today/page.tsx
+     ↓ fetch (API Routes)
+[API Routes]
+     /api/cities           ← 86개 도시 목록 (정적)
+     /api/scores/*         ← Supabase scores_cache 조회
+     /api/today-best       ← 오늘의 BEST TOP 10 (v2)
+     /api/forecast/:cityId ← 14일 예보 (v2)
      ↓ data-service.ts → Supabase (anon key 읽기) 또는 mock fallback
-[수집 스크립트] scripts/*.ts
-     ↓ Supabase (service_role key 쓰기)
-[Supabase] weather_monthly, exchange_rates, holidays, buzz_monthly → scores_cache
+[배치 (GitHub Actions)]
+     매일 03:00 UTC: 환율 → 점수 계산 → 오늘의 BEST
+     6시간마다: 86개 도시 예보 수집
+     매월 1일: 검색 트렌드 수집
+     수동(full_refresh): 날씨(10년) + 공휴일
+[Supabase] 7개 테이블 (weather_monthly, exchange_rates, holidays,
+           buzz_monthly, scores_cache, today_best_cache, forecast_cache)
 ```
 
-**현재 상태**: 메인 페이지(`page.tsx`)는 `mock-scores.ts`에서 직접 데이터를 가져옴. API Routes는 `data-service.ts`를 통해 Supabase 연결을 시도하되, 연결 실패 시 mock 데이터로 fallback.
+**Production URL**: `https://whereorwhen-alpha.vercel.app`
+**도시 수**: 86개 (30+ 국가, 35개 통화)
+**점수 알고리즘**: v2.1 (대비 확장 + 통화별 base cost + 보너스 시스템)
 
 ---
 

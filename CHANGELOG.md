@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-02-17 — v2 기능 구현 + 도시 확장 + 점수 보정
+
+### 1. v2 신규 기능 (PRD_v2.md)
+
+**기능 1: 오늘의 BEST 타이밍**
+- `src/data/seasons.ts` — 20개 도시 40개 시즌 메타데이터
+- `src/lib/today-best.ts` — 보너스 알고리즘 (환율/예보/시즌/시의성)
+- `src/app/api/today-best/route.ts` — GET /api/today-best
+- `src/app/today/page.tsx` — /today 상세 페이지 (TOP 10 + 지역 필터 + 보너스 분석)
+- `src/scripts/calculate-today-best.ts` — 배치 스크립트
+- 메인 페이지에 TodayBest 히어로 카드 섹션 추가
+
+**기능 2: 실시간 날씨 예보 (14일)**
+- `src/lib/forecast.ts` — Open-Meteo Forecast API + 6시간 Supabase 캐시
+- `src/lib/scoring/forecast-adjustment.ts` — 예보 기반 점수 보정 (-0.5~+0.5)
+- `src/app/api/forecast/[cityId]/route.ts` — GET /api/forecast/:cityId
+- `src/scripts/collect-forecast.ts` — 86개 도시 일괄 예보 수집
+- CalendarDetailPanel에 7일 예보 스트립 + LIVE 배지 추가
+
+### 2. 도시 확장: 20개 → 86개
+
+- `src/data/cities-new.ts` — 63개 추가 도시 (일본 8, 동남아 9, 유럽 18, 미주 7 등)
+- `src/scripts/collect-exchange.ts` — 통화 13개 → 35개 확장
+- `src/scripts/collect-holidays.ts` — 국가 15개 → 43개 확장
+- `src/scripts/calculate-scores.ts` — CURRENCY_BASE_COST 35개 통화 추가
+- GitHub Actions timeout 30분 → 45분 증가
+
+### 3. 점수 보정 (v2.1 calibration)
+
+| 함수 | 변경 |
+|------|------|
+| `calcWeatherScore` | power curve → 선형 `4+6×sr`, σ=8→12, 비중 50:50 |
+| `calcCostScore` | 통화별 base cost 재도입, 바닥 올림 (EUR 4→5, GBP 3.5→4.5) |
+| `calcBuzzScore` | sigmoid k=2.5→4, floor 2→3 |
+| total | 대비 확장 ×1.3 (5점 기준) |
+
+결과: 방콕 4월 8.4(최적), 다낭 3월 8.0(최적), 산토리니 7월 7.6(좋음)
+
+### 4. 인프라
+
+- `page.tsx` mock import → API fetch 전환 (CSR async)
+- GitHub Actions: 6시간 예보 크론 추가, 일일 today-best 계산 추가
+- Supabase 테이블 2개 추가: `today_best_cache`, `forecast_cache`
+- `types/index.ts`: v2 타입 추가 (TodayBestItem, ForecastDay, ForecastSummary)
+
+---
+
 ## 2026-02-14 — 지침 파일 일괄 업데이트
 
 소스 코드 전수 조사 후 문서와 실제 코드 간 불일치 해소:

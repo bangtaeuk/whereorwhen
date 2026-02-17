@@ -28,8 +28,9 @@ const supabase = createClient(
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-/** 프로젝트에서 사용하는 13개 통화 */
+/** 프로젝트에서 사용하는 통화 (35개) */
 const TARGET_CURRENCIES = [
+  // 기존 아시아/영미권 (13)
   "JPY",
   "VND",
   "THB",
@@ -43,6 +44,31 @@ const TARGET_CURRENCIES = [
   "EUR",
   "GBP",
   "AUD",
+  // 미주/오세아니아
+  "CAD",
+  "MXN",
+  "NZD",
+  // 유럽
+  "CHF",
+  "CZK",
+  "HUF",
+  "PLN",
+  "NOK",
+  "SEK",
+  "DKK",
+  "ISK",
+  "HRK",
+  // 중동
+  "TRY",
+  "AED",
+  // 동남아/마카오
+  "KHR",
+  "LAK",
+  "MMK",
+  "MOP",
+  // 리조트
+  "MVR",
+  "FJD",
 ] as const;
 
 type TargetCurrency = (typeof TARGET_CURRENCIES)[number];
