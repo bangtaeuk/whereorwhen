@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { cities } from "@/data/cities";
 import { generateHighlights } from "@/lib/highlights";
-import type { AppMode, City, MonthlyScore, ScoreBreakdown, TodayBestItem, ForecastDay, ForecastSummary } from "@/types";
+import type { AppMode, City, MonthlyScore, ScoreBreakdown, TodayBestItem, ForecastSummary } from "@/types";
 
 /* ── Constants ────────────────────────────────────────────── */
 
@@ -157,7 +157,7 @@ export default function V15Page() {
 
   /* Mode A: city → monthly scores (API fetch) */
   const [cityScores, setCityScores] = useState<MonthlyScore[]>([]);
-  const [loadingScores, setLoadingScores] = useState(false);
+  const [loadingScores, setLoadingScores] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   useEffect(() => {
     if (!selectedCityId) {
@@ -202,7 +202,7 @@ export default function V15Page() {
   };
 
   const [cityRankings, setCityRankings] = useState<RankingItem[]>([]);
-  const [loadingRankings, setLoadingRankings] = useState(false);
+  const [loadingRankings, setLoadingRankings] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   useEffect(() => {
     let cancelled = false;

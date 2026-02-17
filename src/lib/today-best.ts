@@ -14,7 +14,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { cities } from "@/data/cities";
 import { getSeasonsForCity, daysUntilSeasonStart, isDateInSeason } from "@/data/seasons";
-import type { TodayBestItem, City, ScoreBreakdown } from "@/types";
+import type { TodayBestItem } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Supabase client

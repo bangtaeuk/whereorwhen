@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import type { TodayBestItem } from "@/types";
 
 /* ── Utilities (shared with main page) ─────────────────────── */
@@ -9,13 +10,6 @@ function scoreColor(v: number): string {
   if (v >= 6) return "#3182F6";
   if (v >= 4) return "#F5A623";
   return "#E8554F";
-}
-
-function scoreGrade(v: number): string {
-  if (v >= 8) return "최적";
-  if (v >= 6) return "좋음";
-  if (v >= 4) return "보통";
-  return "비추";
 }
 
 function countryFlag(cc: string): string {
@@ -143,13 +137,13 @@ export default function TodayBestPage() {
         }}
       >
         <div className="max-w-4xl mx-auto px-4 h-full flex items-center gap-3">
-          <a
+          <Link
             href="/"
             className="w-8 h-8 rounded-full flex items-center justify-center active:scale-95"
             style={{ backgroundColor: "#F7F8FA" }}
           >
             <span className="text-sm" style={{ color: "#6B7684" }}>←</span>
-          </a>
+          </Link>
           <h1
             className="text-base font-bold tracking-tight"
             style={{ color: "#1B1D1F" }}
