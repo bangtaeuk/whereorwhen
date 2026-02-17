@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { cities } from "@/data/cities";
-import { getScoresForCity, getScoresForMonth } from "@/data/mock-scores";
 import { generateHighlights } from "@/lib/highlights";
-import type { AppMode, ScoreBreakdown } from "@/types";
+import type { AppMode, City, MonthlyScore, ScoreBreakdown, TodayBestItem, ForecastDay, ForecastSummary } from "@/types";
 
 /* ── Constants ────────────────────────────────────────────── */
 
@@ -114,6 +113,15 @@ export default function V15Page() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const monthScrollRef = useRef<HTMLDivElement>(null);
 
+  /* Today's BEST fetch */
+  const [todayBest, setTodayBest] = useState<TodayBestItem[]>([]);
+  useEffect(() => {
+    fetch("/api/today-best")
+      .then((r) => r.json())
+      .then((data) => setTodayBest(data.rankings ?? []))
+      .catch(() => {});
+  }, []);
+
   /* Close dropdown on outside click */
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -147,10 +155,29 @@ export default function V15Page() {
     );
   }, [searchQuery, selectedCityId]);
 
-  /* Mode A: city → monthly scores */
-  const cityScores = useMemo(() => {
-    if (!selectedCityId) return [];
-    return getScoresForCity(selectedCityId);
+  /* Mode A: city → monthly scores (API fetch) */
+  const [cityScores, setCityScores] = useState<MonthlyScore[]>([]);
+  const [loadingScores, setLoadingScores] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCityId) {
+      setCityScores([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingScores(true);
+    fetch(`/api/scores/${selectedCityId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCityScores(data.scores ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setCityScores([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingScores(false);
+      });
+    return () => { cancelled = true; };
   }, [selectedCityId]);
 
   const bestMonth = useMemo(() => {
@@ -165,15 +192,43 @@ export default function V15Page() {
     [selectedCityId],
   );
 
-  /* Mode B: month → city rankings */
-  const cityRankings = useMemo(() => {
-    return getScoresForMonth(selectedMonth)
-      .map((ms) => {
-        const city = cities.find((c) => c.id === ms.cityId)!;
-        const highlights = generateHighlights(ms.cityId, ms.month, ms.scores);
-        return { ...ms, city, highlights };
+  /* Mode B: month → city rankings (API fetch) */
+  type RankingItem = {
+    cityId: string;
+    month: number;
+    scores: ScoreBreakdown;
+    city: City;
+    highlights: string[];
+  };
+
+  const [cityRankings, setCityRankings] = useState<RankingItem[]>([]);
+  const [loadingRankings, setLoadingRankings] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingRankings(true);
+    fetch(`/api/scores/ranking?month=${selectedMonth}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.rankings) {
+          setCityRankings(
+            data.rankings.map((r: { rank: number; city: City; scores: ScoreBreakdown; highlights: string[] }) => ({
+              cityId: r.city.id,
+              month: selectedMonth,
+              scores: r.scores,
+              city: r.city,
+              highlights: r.highlights,
+            })),
+          );
+        }
       })
-      .sort((a, b) => b.scores.total - a.scores.total);
+      .catch(() => {
+        if (!cancelled) setCityRankings([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRankings(false);
+      });
+    return () => { cancelled = true; };
   }, [selectedMonth]);
 
   /* Handlers */
@@ -291,6 +346,11 @@ export default function V15Page() {
         </p>
       </section>
 
+      {/* ── B2. Today's BEST ──────────────────────────────── */}
+      {todayBest.length > 0 && (
+        <TodayBestSection items={todayBest} />
+      )}
+
       {/* ── C + D. Input & Results ────────────────────────── */}
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         {mode === "where-to-when" ? (
@@ -384,7 +444,7 @@ function ModeAContent({
   filteredCities: typeof cities;
   selectedCityId: string | null;
   selectedCity: (typeof cities)[number] | null;
-  cityScores: ReturnType<typeof getScoresForCity>;
+  cityScores: MonthlyScore[];
   bestMonth: number;
   expandedMonthKey: number | null;
   setExpandedMonthKey: (v: number | null) => void;
@@ -563,7 +623,7 @@ function CalendarView({
   onClearCity,
 }: {
   selectedCity: (typeof cities)[number];
-  cityScores: ReturnType<typeof getScoresForCity>;
+  cityScores: MonthlyScore[];
   bestMonth: number;
   expandedMonthKey: number | null;
   setExpandedMonthKey: (v: number | null) => void;
@@ -660,13 +720,20 @@ function CalendarView({
                   {scoreGrade(v)}
                 </span>
 
-                {/* BEST badge */}
+                {/* BEST badge or LIVE badge */}
                 {isBest ? (
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
                     style={{ backgroundColor: "#1B1D1F", color: "#FFFFFF" }}
                   >
                     BEST
+                  </span>
+                ) : (ms.month === NOW_MONTH || ms.month === (NOW_MONTH % 12) + 1) ? (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                    style={{ backgroundColor: "#00C471", color: "#FFFFFF" }}
+                  >
+                    LIVE
                   </span>
                 ) : (
                   <span className="w-8 shrink-0" />
@@ -714,11 +781,25 @@ function CalendarDetailPanel({
   onClose: () => void;
 }) {
   const [animate, setAnimate] = useState(false);
+  const [forecast, setForecast] = useState<ForecastSummary | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setAnimate(true), 50);
     return () => clearTimeout(t);
   }, []);
+
+  const isNearMonth =
+    month === NOW_MONTH || month === (NOW_MONTH % 12) + 1;
+
+  useEffect(() => {
+    if (!isNearMonth) return;
+    fetch(`/api/forecast/${city.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.days) setForecast(data as ForecastSummary);
+      })
+      .catch(() => {});
+  }, [city.id, isNearMonth]);
 
   return (
     <div
@@ -739,6 +820,14 @@ function CalendarDetailPanel({
             <span className="text-xs" style={{ color: "#6B7684" }}>
               {city.nameEn}
             </span>
+            {isNearMonth && (
+              <span
+                className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                style={{ backgroundColor: "#00C471", color: "#FFFFFF" }}
+              >
+                실시간 예보
+              </span>
+            )}
             {highlights.map((h, i) => (
               <span
                 key={i}
@@ -758,6 +847,11 @@ function CalendarDetailPanel({
             >
               {scores.total.toFixed(1)}
             </span>
+            {forecast && forecast.scoreAdjustment !== 0 && (
+              <p className="text-[10px] font-medium" style={{ color: forecast.scoreAdjustment > 0 ? "#00C471" : "#E8554F" }}>
+                예보 {forecast.scoreAdjustment > 0 ? "+" : ""}{forecast.scoreAdjustment.toFixed(1)}
+              </p>
+            )}
             <p className="text-xs font-medium" style={{ color }}>
               {scoreGrade(scores.total)}
             </p>
@@ -771,6 +865,51 @@ function CalendarDetailPanel({
           </button>
         </div>
       </div>
+
+      {/* Forecast strip (only for near months) */}
+      {forecast && forecast.days.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-bold mb-2" style={{ color: "#6B7684" }}>
+            🌤️ {forecast.days.length}일 예보
+          </p>
+          <div
+            className="flex gap-0.5 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {forecast.days.slice(0, 7).map((d) => {
+              const dayLabel = new Date(d.date + "T00:00:00").toLocaleDateString("ko-KR", { weekday: "short" });
+              const dateLabel = d.date.slice(5);
+              return (
+                <div
+                  key={d.date}
+                  className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg"
+                  style={{
+                    backgroundColor: d.isClear ? "#F0FDF4" : "#FEF2F2",
+                    minWidth: 44,
+                  }}
+                >
+                  <span className="text-[10px]" style={{ color: "#ADB5BD" }}>
+                    {dayLabel}
+                  </span>
+                  <span className="text-base">{d.weatherIcon}</span>
+                  <span className="text-[10px] font-medium" style={{ color: "#1B1D1F" }}>
+                    {Math.round(d.tempMax)}°
+                  </span>
+                  <span className="text-[9px]" style={{ color: "#ADB5BD" }}>
+                    {dateLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] mt-1.5" style={{ color: forecast.comparison === "better" ? "#00C471" : forecast.comparison === "worse" ? "#E8554F" : "#6B7684" }}>
+            맑은 날 {forecast.clearDays}/{forecast.days.length}일 ({Math.round(forecast.clearRatio * 100)}%)
+            {forecast.comparison === "better" && " · 역사 평균보다 좋음 ✓"}
+            {forecast.comparison === "worse" && " · 역사 평균보다 나쁨"}
+            {forecast.comparison === "similar" && " · 역사 평균과 유사"}
+          </p>
+        </div>
+      )}
 
       {/* Thin separator */}
       <div className="my-3" style={{ height: 1, backgroundColor: "#E8EBED" }} />
@@ -1159,5 +1298,146 @@ function MidRankExpandedDetail({
         </button>
       </div>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Today's BEST 타이밍 섹션
+   ═══════════════════════════════════════════════════════════════ */
+
+function TodayBestSection({ items }: { items: TodayBestItem[] }) {
+  const top1 = items[0];
+  const top2 = items[1];
+  const top3 = items[2];
+  if (!top1) return null;
+
+  const todayStr = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <section className="max-w-4xl mx-auto w-full px-4 pt-6 pb-2">
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-base">🏆</span>
+            <h3
+              className="text-base font-bold"
+              style={{ color: "#1B1D1F" }}
+            >
+              오늘의 BEST 타이밍
+            </h3>
+          </div>
+          <p className="text-[11px] mt-0.5 ml-7" style={{ color: "#ADB5BD" }}>
+            {todayStr} 기준
+          </p>
+        </div>
+        <a
+          href="/today"
+          className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors active:scale-95"
+          style={{
+            backgroundColor: "#F7F8FA",
+            color: "#6B7684",
+          }}
+        >
+          전체 보기 →
+        </a>
+      </div>
+
+      {/* 1위 히어로 카드 */}
+      <div
+        className="rounded-2xl p-5 mb-3"
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderLeft: `4px solid ${scoreColor(top1.score)}`,
+          boxShadow: "0 1px 8px rgba(0,0,0,0.06), 0 0 16px rgba(0,196,113,0.08)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🥇</span>
+              <span className="text-lg">{countryFlag(top1.city.countryCode)}</span>
+              <span className="text-base font-bold" style={{ color: "#1B1D1F" }}>
+                {top1.city.nameKo}
+              </span>
+            </div>
+            <p className="text-sm ml-1" style={{ color: "#6B7684" }}>
+              {top1.recommendedPeriod.label} ({top1.recommendedPeriod.start.slice(5)} ~ {top1.recommendedPeriod.end.slice(5)})
+            </p>
+            {top1.reasons.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2 ml-1">
+                {top1.reasons.map((r, i) => (
+                  <span
+                    key={i}
+                    className="text-[11px] px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: "#F7F8FA", color: "#6B7684" }}
+                  >
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="text-right shrink-0">
+            <span
+              className="text-2xl font-bold tabular-nums"
+              style={{ color: scoreColor(top1.score) }}
+            >
+              {top1.score.toFixed(1)}
+            </span>
+            <p
+              className="text-[10px] font-medium"
+              style={{ color: scoreColor(top1.score) }}
+            >
+              {scoreGrade(top1.score)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2-3위 요약 */}
+      {(top2 || top3) && (
+        <div className="flex gap-2">
+          {[top2, top3].filter(Boolean).map((item) => {
+            if (!item) return null;
+            const c = scoreColor(item.score);
+            return (
+              <div
+                key={item.city.id}
+                className="flex-1 rounded-xl px-3 py-2.5 flex items-center gap-2"
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                  borderLeft: `3px solid ${c}`,
+                }}
+              >
+                <span className="text-sm">
+                  {item.rank === 2 ? "🥈" : "🥉"}
+                </span>
+                <span className="text-sm">{countryFlag(item.city.countryCode)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold truncate" style={{ color: "#1B1D1F" }}>
+                    {item.city.nameKo}
+                  </p>
+                  <p className="text-[10px] truncate" style={{ color: "#ADB5BD" }}>
+                    {item.recommendedPeriod.label}
+                  </p>
+                </div>
+                <span
+                  className="text-sm font-bold tabular-nums shrink-0"
+                  style={{ color: c }}
+                >
+                  {item.score.toFixed(1)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

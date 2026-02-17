@@ -49,6 +49,8 @@
 | `holidays` | 국가별 공휴일 | `country_code, holiday_date` |
 | `buzz_monthly` | 도시별 월별 검색량 | `city_id, month, year` |
 | `scores_cache` | 최종 계산된 점수 | `city_id, month` |
+| `today_best_cache` | 오늘의 BEST 타이밍 결과 (v2) | `date` |
+| `forecast_cache` | 14일 예보 캐시 (v2) | `city_id` |
 
 ---
 
@@ -72,10 +74,13 @@ whereorwhen/
 └── src/
     ├── app/                   # Next.js App Router
     │   ├── layout.tsx         # 루트 레이아웃 (메타데이터, Pretendard 폰트)
-    │   ├── page.tsx           # 메인 페이지 (Mode A/B 통합, 클라이언트 컴포넌트)
+    │   ├── page.tsx           # 메인 페이지 (Mode A/B + 오늘의 BEST, 클라이언트 컴포넌트)
     │   ├── globals.css        # 글로벌 스타일 (Tailwind import, 점수 색상 변수)
+    │   ├── today/page.tsx     # 오늘의 BEST 타이밍 상세 페이지 (v2)
     │   └── api/               # API Routes
     │       ├── cities/route.ts           # GET /api/cities — 도시 목록
+    │       ├── today-best/route.ts       # GET /api/today-best — 오늘의 BEST TOP 10 (v2)
+    │       ├── forecast/[cityId]/route.ts # GET /api/forecast/:cityId — 14일 예보 (v2)
     │       └── scores/
     │           ├── [cityId]/route.ts     # GET /api/scores/:cityId — 도시별 12개월 점수
     │           └── ranking/route.ts      # GET /api/scores/ranking?month=N — 월별 랭킹
@@ -97,15 +102,19 @@ whereorwhen/
     │   ├── data-service.ts    # 데이터 조회 서비스 (Supabase + mock fallback)
     │   ├── score.ts           # 가중치, 종합 점수 계산, 등급 판별
     │   ├── highlights.ts      # 도시별 시즌 키워드 & 하이라이트 생성
+    │   ├── today-best.ts      # 오늘의 BEST 타이밍 알고리즘 (v2)
+    │   ├── forecast.ts        # Open-Meteo Forecast API + 캐시 (v2)
     │   ├── utils.ts           # 유틸리티 (국기 이모지, 월 이름)
     │   └── scoring/           # 개별 점수 계산 모듈
     │       ├── index.ts       # 통합 export + calculateMonthlyScore
     │       ├── weather.ts     # 날씨 점수 (위도 기반 추정)
     │       ├── cost.ts        # 비용 점수 (통화별 기본 물가 + 월별 변동)
     │       ├── crowd.ts       # 혼잡도 점수 (한국/현지 연휴 밀집도)
-    │       └── buzz.ts        # 버즈 점수 (도시별 월간 패턴)
+    │       ├── buzz.ts        # 버즈 점수 (도시별 월간 패턴)
+    │       └── forecast-adjustment.ts # 예보 기반 점수 보정 (v2)
     ├── data/                  # 정적 데이터
     │   ├── cities.ts          # MVP 대상 20개 도시 정보
+    │   ├── seasons.ts         # 도시별 시즌 메타데이터 (v2)
     │   └── mock-scores.ts     # 20도시×12월 목업 점수 (Supabase 미연결 시 fallback)
     ├── scripts/               # 데이터 수집 & 점수 계산 스크립트
     │   ├── init-all.ts        # 마스터 초기화 (전체 수집 + 점수 계산)
@@ -115,7 +124,9 @@ whereorwhen/
     │   ├── collect-holidays.ts # Nager.Date → holidays
     │   ├── collect-buzz.ts    # Naver Blog Search → buzz_monthly
     │   ├── collect-trend.ts   # Naver DataLab → buzz_monthly
-    │   └── calculate-scores.ts # 원시 데이터 → scores_cache 최종 점수 계산
+    │   ├── collect-forecast.ts # Open-Meteo Forecast → forecast_cache (v2)
+    │   ├── calculate-scores.ts # 원시 데이터 → scores_cache 최종 점수 계산
+    │   └── calculate-today-best.ts # 오늘의 BEST 타이밍 계산 → today_best_cache (v2)
     └── types/                 # TypeScript 타입 정의
         └── index.ts           # Score, ScoreBreakdown, City, MonthlyScore, AppMode 등
 ```

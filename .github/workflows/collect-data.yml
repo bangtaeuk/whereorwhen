@@ -2,8 +2,10 @@ name: Collect Travel Data
 
 on:
   schedule:
-    # 매일 03:00 UTC (12:00 KST)
+    # 매일 03:00 UTC (12:00 KST) — 환율 + 점수 + 오늘의 BEST
     - cron: "0 3 * * *"
+    # 6시간마다 예보 수집 — 21:00 UTC (06:00 KST), 09:00 UTC (18:00 KST), 15:00 UTC (00:00 KST)
+    - cron: "0 9,15,21 * * *"
   workflow_dispatch:
     inputs:
       full_refresh:
@@ -31,8 +33,13 @@ jobs:
 
       - run: npm ci
 
-      # ── Daily: exchange rates (always) ─────────────────────
+      # ── Always: collect forecasts (every 6h + daily) ───────
+      - name: Collect forecasts (20 cities)
+        run: npx tsx src/scripts/collect-forecast.ts
+
+      # ── Daily (03:00 UTC only): exchange rates ─────────────
       - name: Collect exchange rates
+        if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
         run: npx tsx src/scripts/collect-exchange.ts
         env:
           EXCHANGE_RATE_API_KEY: ${{ secrets.EXCHANGE_RATE_API_KEY }}
@@ -41,7 +48,7 @@ jobs:
       - name: Collect trend data (monthly)
         if: >-
           github.event_name == 'workflow_dispatch' && inputs.full_refresh == 'true' ||
-          (github.event_name == 'schedule' && github.run_number != '' && startsWith(github.event.schedule, '0 3'))
+          github.event.schedule == '0 3 * * *'
         run: |
           DAY=$(date -u +%d)
           if [ "$DAY" = "01" ] || [ "${{ inputs.full_refresh }}" = "true" ]; then
@@ -64,9 +71,14 @@ jobs:
           github.event_name == 'workflow_dispatch' && inputs.full_refresh == 'true'
         run: npx tsx src/scripts/collect-holidays.ts
 
-      # ── Always: recalculate scores ─────────────────────────
+      # ── Daily (03:00 UTC only): recalculate scores + today best
       - name: Calculate scores
+        if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
         run: npx tsx src/scripts/calculate-scores.ts
+
+      - name: Calculate today's BEST
+        if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
+        run: npx tsx src/scripts/calculate-today-best.ts
 
   # ── Manual-only: backfill historical exchange rates ────────
   backfill-exchange:

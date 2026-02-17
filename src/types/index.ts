@@ -43,3 +43,49 @@ export type ScoreGrade = "best" | "good" | "average" | "poor";
 
 /** 모드 */
 export type AppMode = "where-to-when" | "when-to-where";
+
+/* ── v2 Types ──────────────────────────────────────────────── */
+
+/** 오늘의 BEST 타이밍 항목 */
+export interface TodayBestItem {
+  rank: number;
+  city: City;
+  recommendedPeriod: {
+    start: string;
+    end: string;
+    label: string;
+  };
+  score: number;
+  baseScore: number;
+  bonuses: {
+    exchangeRate: number;
+    forecast: number;
+    season: number;
+    timeliness: number;
+  };
+  reasons: string[];
+}
+
+/** 날씨 예보 일별 데이터 */
+export interface ForecastDay {
+  date: string;
+  tempMax: number;
+  tempMin: number;
+  precipitation: number;
+  weatherCode: number;
+  weatherIcon: string;
+  isClear: boolean;
+}
+
+/** 날씨 예보 요약 */
+export interface ForecastSummary {
+  cityId: string;
+  days: ForecastDay[];
+  clearDays: number;
+  clearRatio: number;
+  avgTemp: number;
+  historicalClearRatio: number;
+  comparison: "better" | "similar" | "worse";
+  scoreAdjustment: number;
+  fetchedAt: string;
+}
