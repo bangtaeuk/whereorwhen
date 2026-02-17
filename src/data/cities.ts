@@ -1,10 +1,12 @@
 import type { City } from "@/types";
+import { newCities } from "./cities-new";
 
 /**
- * MVP 대상 도시 목록 (한국인 방문객 순 상위 20개)
- * 출처: PRD §7.1
+ * 전체 도시 목록 (한국인 인기 여행지 83개)
+ * - 기존 20개 (PRD §7.1 MVP 도시)
+ * - 추가 63개 (v2 확장)
  */
-export const cities: City[] = [
+const baseCities: City[] = [
   {
     id: "osaka",
     nameKo: "오사카",
@@ -226,3 +228,5 @@ export const cities: City[] = [
     keywords: ["시드니 여행", "시드니 오페라하우스", "본다이비치"],
   },
 ];
+
+export const cities: City[] = [...baseCities, ...newCities];
