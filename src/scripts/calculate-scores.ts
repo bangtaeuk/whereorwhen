@@ -22,7 +22,7 @@ function requireEnv(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Weather Score — smooth continuous function
+// 1. Weather Score — calibrated v2
 // ---------------------------------------------------------------------------
 interface WeatherRow {
   city_id: string;
@@ -32,10 +32,17 @@ interface WeatherRow {
 }
 
 /**
- * 날씨 점수 계산 (연속 함수)
- * - sunny_ratio: 맑은 날 비율 기여 (weight 60%)
- * - avg_temp: 21.5°C 최적, 벗어날수록 감점 (weight 40%)
- * 최종 1.0~10.0 범위 클램프
+ * 날씨 점수 계산 (보정 v2)
+ *
+ * 변경점 (vs v1):
+ * - sunny_ratio: power curve → 선형 매핑 + 높은 floor (3점)
+ *   → 흐리지만 따뜻한 기후도 적정 점수 보장
+ * - 기온: σ=8 → σ=12 (더 관대한 벨 커브) + floor 2점
+ *   → 15~28°C가 아니어도 극단적 감점 없음
+ * - 비중: 60:40(sunny:temp) → 50:50
+ *   → 기온의 영향력 상향
+ *
+ * 결과 범위: 오사카 4월 ~7.0, 하와이 6월 ~8.8, 런던 1월 ~4.8
  */
 function calcWeatherScore(
   avgTemp: number | null,
@@ -44,18 +51,19 @@ function calcWeatherScore(
   const sr = sunnyRatio ?? 0.5;
   const temp = avgTemp ?? 20;
 
-  // Sunny component: 0→1 maps to ~1→10 via power curve
-  const sunnyScore = 1 + 9 * Math.pow(sr, 1.2);
+  // Sunny: linear with floor 4 (cloudy but warm = still decent for travel)
+  // sr=0 → 4, sr=0.3 → 5.8, sr=0.5 → 7, sr=0.7 → 8.2, sr=1 → 10
+  const sunnyScore = 4 + 6 * sr;
 
-  // Temperature component: bell curve centered at 21.5°C, σ=8
-  const optimalTemp = 21.5;
-  const sigma = 8;
+  // Temperature: wide bell curve, center 22°C, σ=12, floor 2
+  const optimalTemp = 22;
+  const sigma = 12;
   const tempScore =
-    1 +
-    9 * Math.exp(-Math.pow(temp - optimalTemp, 2) / (2 * sigma * sigma));
+    2 +
+    8 * Math.exp(-Math.pow(temp - optimalTemp, 2) / (2 * sigma * sigma));
 
-  // Weighted combination
-  const combined = 0.6 * sunnyScore + 0.4 * tempScore;
+  // 50/50 combination
+  const combined = 0.5 * tempScore + 0.5 * sunnyScore;
   return clamp(Math.round(combined * 10) / 10, 1.0, 10.0);
 }
 
@@ -68,20 +76,51 @@ interface ExchangeRow {
   rate: number;
 }
 
+/**
+ * 통화별 기본 비용 점수 (절대 물가 수준 반영)
+ * 한국인 여행자 관점에서 저렴할수록 높은 점수
+ */
+const CURRENCY_BASE_COST: Record<string, number> = {
+  JPY: 7.5,  // 일본 — 엔저로 매우 유리
+  VND: 8.0,  // 베트남 — 매우 저렴
+  THB: 7.5,  // 태국 — 저렴
+  PHP: 7.0,  // 필리핀 — 저렴
+  IDR: 7.5,  // 인도네시아 — 저렴
+  MYR: 7.0,  // 말레이시아 — 저렴
+  TWD: 6.5,  // 대만 — 보통~저렴
+  SGD: 4.5,  // 싱가포르 — 비쌈
+  HKD: 5.5,  // 홍콩 — 보통
+  USD: 4.5,  // 미국 — 비쌈
+  EUR: 4.0,  // 유로 — 비쌈
+  GBP: 3.5,  // 영국 — 매우 비쌈
+  AUD: 5.0,  // 호주 — 비쌈
+};
+
+/**
+ * 비용 점수 계산 (보정 v2)
+ *
+ * 변경점 (vs v1):
+ * - 통화별 기본 물가 수준(base cost) 재도입
+ *   → 엔화/바트/동은 기본 7-8점, 유로/파운드는 3.5-4점
+ * - 환율 변동은 ±1.5점 modifier로 제한
+ *   → 기본 물가에 환율 유불리를 가감하는 직관적 구조
+ *
+ * 결과 범위: JPY 6.0~9.0, EUR 2.5~5.5, VND 6.5~9.5
+ */
 function calcCostScore(
   currentRate: number | null,
-  avgRate: number | null
+  avgRate: number | null,
+  currency: string
 ): number {
-  if (currentRate == null || avgRate == null || avgRate === 0) return 5.0;
+  const baseCost = CURRENCY_BASE_COST[currency] ?? 5.0;
 
-  // Positive pctDiff means KRW is stronger (cheaper to travel)
-  // rate = KRW per 1 unit of foreign currency
-  // If rate drops, KRW buys more foreign currency → cheaper → higher score
+  if (currentRate == null || avgRate == null || avgRate === 0) return baseCost;
+
   const pctDiff = ((avgRate - currentRate) / avgRate) * 100;
+  // ±5% 환율 변동 → ±1.5점 modifier
+  const exchangeModifier = clamp(pctDiff * 0.3, -1.5, 1.5);
 
-  // Smooth mapping: sigmoid centered at 0, ±10% → full range
-  const score = 5.5 + 4.5 * Math.tanh(pctDiff / 10);
-  return clamp(Math.round(score * 10) / 10, 1.0, 10.0);
+  return clamp(Math.round((baseCost + exchangeModifier) * 10) / 10, 1.0, 10.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +165,16 @@ interface BuzzRow {
   total_count: number | null;
 }
 
+/**
+ * 버즈 점수 계산 (보정 v2)
+ *
+ * 변경점 (vs v1):
+ * - sigmoid 감도 상향: k=2.5 → k=4 (더 넓은 점수 분포)
+ * - floor 상향: 2 → 3 (비수기도 최소 3점)
+ * - range: 7 (3~10)
+ *
+ * 결과: ratio=1→6.5, ratio=1.5→9.2, ratio=0.5→3.8
+ */
 function calcBuzzScore(
   monthCount: number | null,
   annualAvg: number | null
@@ -134,8 +183,8 @@ function calcBuzzScore(
 
   const ratio = monthCount / annualAvg;
 
-  // Sigmoid: ratio=1 → ~5.5, ratio≥2 → ~9-10, ratio≤0.5 → ~3-4
-  const score = 2 + 8 * (1 / (1 + Math.exp(-2.5 * (ratio - 1))));
+  // More sensitive sigmoid for wider score distribution
+  const score = 3 + 7 * (1 / (1 + Math.exp(-4 * (ratio - 1))));
   return clamp(Math.round(score * 10) / 10, 1.0, 10.0);
 }
 
@@ -308,8 +357,8 @@ export async function main(): Promise<void> {
       // Cost
       const rateInfo = currencyRates.get(city.currency);
       const costScore = rateInfo
-        ? calcCostScore(rateInfo.current, rateInfo.avg365)
-        : 5.0;
+        ? calcCostScore(rateInfo.current, rateInfo.avg365, city.currency)
+        : (CURRENCY_BASE_COST[city.currency] ?? 5.0);
 
       // Crowd
       const krHolidays = holidayCountMap.get(`KR:${month}`) ?? 0;
@@ -322,8 +371,8 @@ export async function main(): Promise<void> {
       const annualAvg = buzzAnnualMap.get(city.id) ?? null;
       const buzzScore = calcBuzzScore(monthBuzz, annualAvg);
 
-      // Total
-      const total = calculateTotalScore(
+      // Total (with contrast expansion)
+      const rawTotal = calculateTotalScore(
         {
           weather: weatherScore,
           cost: costScore,
@@ -331,6 +380,13 @@ export async function main(): Promise<void> {
           buzz: buzzScore,
         },
         DEFAULT_WEIGHTS
+      );
+      // Contrast expansion: spread scores away from midpoint 5.0
+      // raw 7.6→8.4, 7.0→7.6, 5.0→5.0, 4.0→3.7
+      const total = clamp(
+        Math.round((5 + (rawTotal - 5) * 1.3) * 10) / 10,
+        1.0,
+        10.0
       );
 
       upsertRows.push({
